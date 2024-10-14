@@ -1,0 +1,31 @@
+def cal_psd(time, data, method, start_freq, end_freq):
+    fxx = []
+    pxx = []
+    pxx_cum = []
+    num_fre = len(data)
+    if method == 'lomb_scipy':
+        # fxx = np.linspace(start_freq, end_freq, 5000)
+        fxx = np.logspace(np.log10(start_freq), np.log10(end_freq), 5000)
+        delta_f = np.diff(fxx)
+        delta_f = np.append(delta_f, 0)
+        pgram = signal.lombscargle(time, data - data.mean(), fxx * 2 * np.pi)
+        pgram *= 2 / num_fre
+        pxx = pgram * num_fre / end_freq / 2
+        pxx_cum = np.sqrt(np.cumsum(pxx * delta_f))
+
+    if method == 'lomb_gatspy':
+        fxx = np.linspace(start_freq, end_freq, num_fre)
+        delta_f = fxx[2] - fxx[1]
+        model = LombScargleFast().fit(time, data - data.mean(), 1)
+        pgram = model.score_frequency_grid(start_freq, delta_f, num_fre)
+        pgram *= data.std() ** 2
+        pxx = pgram * num_fre / end_freq / 2
+        pxx_cum = np.sqrt(np.cumsum(pxx * delta_f))
+
+    if method == 'welch':
+        sampling_fre = end_freq * 2
+        fxx, pxx = signal.welch(data - data.mean(), sampling_fre, nfft=5 * num_fre, nperseg=num_fre, scaling='density',
+                                window='hann')
+        pxx_cum = np.sqrt(np.cumsum(pxx * (fxx[2] - fxx[1])))
+
+    return fxx, pxx, pxx_cum
